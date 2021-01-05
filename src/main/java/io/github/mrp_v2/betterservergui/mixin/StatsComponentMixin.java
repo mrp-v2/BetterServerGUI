@@ -22,7 +22,7 @@ import java.awt.*;
     @Final @Shadow private MinecraftServer server;
     private int lastServerTickCount = 0;
 
-    @Inject(method = "tick", at = @At("HEAD")) private void tick(CallbackInfo ci)
+    @Inject(method = "tick", at = @At("HEAD")) private void onTick(CallbackInfo ci)
     {
         for (int i = lastServerTickCount; i < server.getTickCounter(); i++)
         {
@@ -31,7 +31,7 @@ import java.awt.*;
         lastServerTickCount = server.getTickCounter();
     }
 
-    @Inject(method = "paint", at = @At("TAIL")) public void paint(Graphics p_paint_1_, CallbackInfo ci)
+    @Inject(method = "paint", at = @At("TAIL")) public void onPaint(Graphics p_paint_1_, CallbackInfo ci)
     {
         p_paint_1_.setColor(Color.BLACK);
         p_paint_1_.drawString("- 0 mb", 257, 103);
@@ -48,24 +48,31 @@ import java.awt.*;
         for (int i = 0; i < 256; i++)
         {
             int tickTime = tickTimes[i + lastServerTickCount & 255];
+            // it wouldn't show up on the graph, so just skip it
             if (tickTime == 0)
             {
                 continue;
             }
+            // clamp tick time to a max of 75
             if (tickTime > 75)
             {
                 tickTime = 75;
             }
-            int tickTimeOutOf60 = tickTime * 60 / 75;
-            int percentageOfMaxTickTime = tickTime * 100 / 50;
-            if (percentageOfMaxTickTime > 100)
+            // make the tick time a percentage of 50 ms
+            tickTime *= 2;
+            // adjust the tick time to be a value from 1-60
+            int tickTimeOutOf60 = tickTime * 30 / 75;
+            // clamp tick time to a max of 100%
+            if (tickTime > 100)
             {
-                percentageOfMaxTickTime = 100;
+                tickTime = 100;
             }
-            int red = percentageOfMaxTickTime > 50 ? (255 * (percentageOfMaxTickTime - 50) / 50) : 0;
-            int green = 255 - percentageOfMaxTickTime * 255 / 100;
+            // red increases from 0 to 255 from tick time 0% - 50%
+            int red = tickTime < 50 ? (255 * (tickTime) / 50) : 255;
+            // green decreases linearly through the whole scale
+            int green = 255 - tickTime * 255 / 100;
             p_paint_1_.setColor(new Color(red, green, 0));
-            p_paint_1_.fillRect(i, 148 + 60 - tickTimeOutOf60, 1, tickTimeOutOf60);
+            p_paint_1_.fillRect(i, 208 - tickTimeOutOf60, 1, tickTimeOutOf60);
         }
     }
 }
