@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "io.github.mrp_v2.betterservergui.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "betterservergui.refmap.json",
+  "server": [
+    "StatsComponentMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "minVersion": "0.8"
+}
