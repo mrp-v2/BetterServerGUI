@@ -3,9 +3,7 @@
   "package": "io.github.mrp_v2.betterservergui.mixin",
   "compatibilityLevel": "JAVA_8",
   "refmap": "betterservergui.refmap.json",
-  "server": [
-    "StatsComponentMixin"
-  ],
+  "server": [ "MinecraftServerGuiMixin", "StatsComponentMixin" ],
   "injectors": {
     "defaultRequire": 1
   },
