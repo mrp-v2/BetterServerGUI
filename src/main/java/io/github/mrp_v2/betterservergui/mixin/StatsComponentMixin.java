@@ -21,6 +21,27 @@ import java.awt.*;
     private final int threeFourthsMaxMemory = halfMaxMemory + oneFourthMaxMemory;
     @Final @Shadow private MinecraftServer server;
     private int lastServerTickCount = 0;
+    private final Timer tickTimeTickTimer = new Timer(50, (action) -> this.tickTimeTick());
+
+    @Inject(method = "<init>", at = @At("RETURN")) private void onInitialization(CallbackInfo ci)
+    {
+        tickTimeTickTimer.start();
+    }
+
+    private void tickTimeTick()
+    {
+        for (int i = lastServerTickCount; i < server.getTickCounter(); i++)
+        {
+            tickTimes[i & 255] = (int) (server.tickTimeArray[i % 100] / 1000000);
+        }
+        lastServerTickCount = server.getTickCounter();
+        repaint();
+    }
+
+    @Inject(method = "func_219053_a", at = @At("HEAD")) private void onStopTimers(CallbackInfo ci)
+    {
+        tickTimeTickTimer.stop();
+    }
 
     @Inject(method = "tick", at = @At("HEAD")) private void onTick(CallbackInfo ci)
     {

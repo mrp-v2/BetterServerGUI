@@ -9,6 +9,9 @@ buildscript {
         maven {
             url = 'https://files.minecraftforge.net/maven'
         }
+        maven {
+            url = 'https://plugins.gradle.org/m2/'
+        }
         jcenter()
         mavenCentral()
         maven {
@@ -18,11 +21,12 @@ buildscript {
     dependencies {
         classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
         classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+        classpath group: 'gradle.plugin.com.matthewprenger', name: 'CurseGradle', version: '1.4.0'
     }
 }
 apply plugin: 'net.minecraftforge.gradle'
-// Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
 apply plugin: 'maven-publish'
+apply plugin: 'com.matthewprenger.cursegradle'
 String mcVersion = version.split('-')[0]
 if (forgeVersion == 'latest' || forgeVersion == 'recommended')
 {
@@ -35,16 +39,40 @@ if (forgeVersion == 'latest' || forgeVersion == 'recommended')
 String capitalizedModId = modDisplayName.replace(' ', '')
 String modId = capitalizedModId.toLowerCase()
 String forgeMajor = forgeVersion.split('\\.')[0]
-String mcNextVersion = '1.' + ((mcVersion.split('\\.')[1] as int) + 1)
+if (minimumForgeVersion == 'none')
+{
+    minimumForgeVersion = forgeMajor
+}
 String homepageURL = "https://www.curseforge.com/minecraft/mc-mods/${modDisplayName.replace(' ', '-').toLowerCase()}"
 String issuesURL = "${homepageURL}/issues"
 String updateURL = "https://raw.githubusercontent.com/mrp-v2/${capitalizedModId}/master/update.json"
+String mrpLibAPI = 'none', mrpLibPatch = 'none', mrpLibNextAPI = 'none'
+if (mrpLibVersion != 'none')
+{
+    if (mrpLibVersion.contains(','))
+    {
+        int splitIndex = mrpLibVersion.indexOf(',')
+        mrpLibAPI = mrpLibVersion.substring(0, splitIndex)
+        mrpLibPatch = '.' + mrpLibVersion.substring(splitIndex + 1)
+    } else
+    {
+        mrpLibAPI = mrpLibVersion
+        mrpLibPatch = ''
+    }
+    mrpLibNextAPI = mrpLibAPI.split('\\.')[0] + '.' + ((mrpLibAPI.split('\\.')[1] as int) + 1)
+}
 archivesBaseName = modId
 group = "${author}.${archivesBaseName}"
+boolean usesMixins = file("src/main/resources/${modId}.mixins.json").exists()
+File secretFile = file '../secrets.json'
 
 println('Java: ' + System.getProperty('java.version') + ' JVM: ' + System.getProperty('java.vm.version') + '(' +
         System.getProperty('java.vendor') + ') Arch: ' + System.getProperty('os.arch'))
 println('Minecraft: ' + mcVersion + ' Forge: ' + forgeVersion + ' Mapping: ' + mapping + ' Mod: ' + version)
+
+sourceSets.main.resources {
+    srcDirs += 'src/generated/resources'
+}
 
 minecraft {
     mappings channel: mapping.split('\\|')[0], version: mapping.split('\\|')[1]
@@ -57,39 +85,48 @@ minecraft {
     }
     runs {
         client {
-            property 'mixin.env.disableRefMap', 'true'
+            if (usesMixins)
+            {
+                property 'mixin.env.disableRefMap', 'true'
+                arg "-mixin.config=" + archivesBaseName + ".mixins.json"
+            }
             workingDirectory project.file('run')
-            arg "-mixin.config=" + archivesBaseName + ".mixins.json"
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             mods {
-                mrplibrary {
+                mod {
                     source sourceSets.main
                 }
             }
         }
         server {
-            property 'mixin.env.disableRefMap', 'true'
+            if (usesMixins)
+            {
+                property 'mixin.env.disableRefMap', 'true'
+                arg "-mixin.config=" + archivesBaseName + ".mixins.json"
+            }
             workingDirectory project.file('run')
-            arg "-mixin.config=" + archivesBaseName + ".mixins.json"
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             mods {
-                mrplibrary {
+                mod {
                     source sourceSets.main
                 }
             }
         }
         data {
-            property 'mixin.env.disableRefMap', 'true'
+            if (usesMixins)
+            {
+                property 'mixin.env.disableRefMap', 'true'
+                arg "-mixin.config=" + archivesBaseName + ".mixins.json"
+            }
             workingDirectory project.file('run')
-            arg "-mixin.config=" + archivesBaseName + ".mixins.json"
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             args '--mod', modId, '--all', '--output', file('src/generated/resources/'), '--existing',
-                    sourceSets.main.output.resourcesDir
+                    sourceSets.main.output.resourcesDir, '--existing', file('../mrpLibrary/build/resources/main')
             mods {
-                mrplibrary {
+                mod {
                     source sourceSets.main
                 }
             }
@@ -97,31 +134,60 @@ minecraft {
     }
 }
 
+repositories {
+    maven {
+        name = 'mrp Library'
+        url = new URL('https://maven.pkg.github.com/mrp-v2/mrpLibrary')
+        credentials {
+            username = 'mrp-v2'
+            if (secretFile.exists())
+            {
+                password = new JsonSlurper().parse(new File('../secrets.json')).get('github-packages-token')
+            }
+        }
+    }
+    mavenLocal()
+}
+
 dependencies {
     minecraft "net.minecraftforge:forge:${mcVersion}-${forgeVersion}"
+    if (mrpLibAPI != 'none' && mrpLibPatch != 'none')
+    {
+        compile fg.deobf("mrp_v2.mrplibrary:mrplibrary:${mrpLibAPI}${mrpLibPatch}")
+    }
 }
 
 jar {
     manifest {
-        attributes(['Specification-Title'     : archivesBaseName,
-                    'Specification-Vendor'    : author,
-                    'Specification-Version'   : '1', // We are version 1 of ourselves
-                    'Implementation-Title'    : project.name,
-                    'Implementation-Version'  : "${version}",
-                    'Implementation-Vendor'   : author,
-                    'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                    'MixinConfigs': "${modId}.mixins.json"])
+        Map<String, ?> map = new HashMap<>()
+        map.putAll('Specification-Title': archivesBaseName,
+                'Specification-Vendor': author,
+                'Specification-Version': '1', // We are version 1 of ourselves
+                'Implementation-Title': project.name,
+                'Implementation-Version': "${version}",
+                'Implementation-Vendor': author,
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"))
+        if (usesMixins)
+        {
+            map.putAll('MixinConfigs': "${modId}.mixins.json")
+        }
+        attributes(map)
     }
 }
 
 jar.finalizedBy('reobfJar')
 
 processResources {
+    String tempMCVersion = mcVersion
+    if (mcVersion == "1.16.5")
+    {
+        tempMCVersion = "1.16.4"
+    }
     inputs.property 'version', project.version
     inputs.property 'modId', modId
     inputs.property 'forgeMajor', forgeMajor
-    inputs.property 'mcVersion', mcVersion
-    inputs.property 'mcNextVersion', mcNextVersion
+    inputs.property 'minimumForgeVersion', minimumForgeVersion
+    inputs.property 'mcVersion', tempMCVersion
     inputs.property 'homepageURL', homepageURL
     inputs.property 'modDisplayName', modDisplayName
     inputs.property 'capitalizedModId', capitalizedModId
@@ -129,17 +195,35 @@ processResources {
     inputs.property 'author', author
     inputs.property 'updateURL', updateURL
     inputs.property 'issuesURL', issuesURL
+    if (mrpLibVersion != 'none')
+    {
+        inputs.property 'mrpLibAPI', mrpLibAPI
+        inputs.property 'mrpLibNextAPI', mrpLibNextAPI
+    }
+    String[] files = new String[2]
+    files[0] = 'META-INF/mods.toml'
+    files[1] = 'pack.mcmeta'
     from(sourceSets.main.resources.srcDirs) {
-        include '**/*'
-        exclude '**/*.png'
-        expand 'version': project.version, 'modId': modId, 'forgeMajor': forgeMajor, 'mcVersion': mcVersion,
-                'mcNextVersion': mcNextVersion, 'homepageURL': homepageURL, 'modDisplayName': modDisplayName,
-                'capitalizedModId': capitalizedModId, 'modDescription': modDescription, 'author': author,
-                'updateURL': updateURL, 'issuesURL': issuesURL
+        include files
+        Map<String, ?> properties = new HashMap<>()
+        properties.putAll('version': project.version, 'modId': modId, 'forgeMajor': forgeMajor,
+                'minimumForgeVersion': minimumForgeVersion, 'mcVersion': tempMCVersion,
+                'homepageURL': homepageURL, 'modDisplayName': modDisplayName, 'capitalizedModId': capitalizedModId,
+                'modDescription': modDescription, 'author': author, 'updateURL': updateURL, 'issuesURL': issuesURL)
+        if (mrpLibVersion != 'none')
+        {
+            properties.putAll('mrpLibAPI': mrpLibAPI, 'mrpLibNextAPI': mrpLibNextAPI)
+        }
+        expand properties
     }
     from(sourceSets.main.resources.srcDirs) {
-        exclude '**/*'
+        exclude files
     }
+}
+
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allJava
+    classifier = 'sources'
 }
 
 publishing {
@@ -149,7 +233,10 @@ publishing {
             url = uri('https://maven.pkg.github.com/mrp-v2/' + capitalizedModId)
             credentials {
                 username = 'mrp-v2'
-                password = System.getenv('GITHUB_TOKEN')
+                if (secretFile.exists())
+                {
+                    password = new JsonSlurper().parse(new File('../secrets.json')).get('github-packages-token')
+                }
             }
         }
     }
@@ -157,6 +244,7 @@ publishing {
         gpr(MavenPublication) {
             artifactId modId
             artifact jar
+            artifact sourcesJar
         }
     }
 }
@@ -192,8 +280,56 @@ task regenerateUpdateJson {
     }
 }
 
-apply plugin: 'org.spongepowered.mixin'
+if (usesMixins)
+{
+    apply plugin: 'org.spongepowered.mixin'
 
-mixin {
-    add sourceSets.main, "${modId}.refmap.json"
+    mixin {
+        add sourceSets.main, "${modId}.refmap.json"
+    }
+}
+
+task publishToGithubAndCurseforge {
+    dependsOn ':publishGprPublicationToGitHubPackagesRepository'
+    dependsOn ":curseforge${projectId}"
+}
+
+curseforge {
+    if (secretFile.exists())
+    {
+        apiKey = new JsonSlurper().parse(secretFile).get('curseforge-api-token')
+    }
+    project {
+        id = projectId
+        StringBuilder out = new StringBuilder(), error = new StringBuilder()
+        Process previousVersionProcess = ['git', 'describe', '--tags', '--abbrev=0', "${version}^"].execute()
+        previousVersionProcess.consumeProcessOutput(out, error)
+        previousVersionProcess.waitFor()
+        String previousVersion = out.toString().trim()
+        out = new StringBuilder()
+        println('Previous Version: ' + previousVersion)
+        println('Error?: ' + error.toString().trim())
+        error = new StringBuilder()
+        Process gitLogProcess = ['git', 'log', '--pretty=format:"%s"', "${previousVersion}..${version}"].execute()
+        gitLogProcess.consumeProcessOutput(out, error)
+        gitLogProcess.waitFor()
+        String changelogStr = out.toString().trim()
+        println('Changelog: ' + changelogStr)
+        println('Error?: ' + error.toString().trim())
+        changelog = changelogStr
+        releaseType = 'release'
+        addGameVersion mcVersion
+        if (mrpLibVersion != 'none')
+        {
+            relations {
+                requiredDependency 'mrp-library'
+            }
+        }
+    }
+    options {
+        debug = false
+        javaVersionAutoDetect = false
+        javaIntegration = true
+        forgeGradleIntegration = true
+    }
 }
