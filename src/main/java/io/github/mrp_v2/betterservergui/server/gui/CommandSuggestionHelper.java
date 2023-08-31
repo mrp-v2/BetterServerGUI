@@ -8,9 +8,9 @@ import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestion;
 import com.mojang.brigadier.tree.CommandNode;
-import net.minecraft.command.CommandSource;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -39,7 +39,8 @@ public class CommandSuggestionHelper
     private CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggestionsFuture;
     @Nullable private CommandSuggestionHelper.Suggestions suggestions;
     private boolean isApplyingSuggestion;
-    @Nullable private ParseResults<CommandSource> parseResults;
+    @Nullable
+    private ParseResults<CommandSourceStack> parseResults;
 
     public boolean isApplyingSuggestion()
     {
@@ -153,7 +154,7 @@ public class CommandSuggestionHelper
             stringReader.skip();
         }
         int caretPosition = inputField.getCaretPosition();
-        CommandDispatcher<CommandSource> commandDispatcher = server.getCommands().getDispatcher();
+        CommandDispatcher<CommandSourceStack> commandDispatcher = server.getCommands().getDispatcher();
         if (parseResults == null)
         {
             parseResults = commandDispatcher.parse(stringReader, server.createCommandSourceStack());
@@ -178,7 +179,7 @@ public class CommandSuggestionHelper
             if (suggestionsFuture.join().isEmpty() && !parseResults.getExceptions().isEmpty())
             {
                 int i = 0;
-                for (Map.Entry<CommandNode<CommandSource>, CommandSyntaxException> entry : parseResults.getExceptions()
+                for (Map.Entry<CommandNode<CommandSourceStack>, CommandSyntaxException> entry : parseResults.getExceptions()
                         .entrySet())
                 {
                     CommandSyntaxException commandsyntaxexception = entry.getValue();
@@ -287,10 +288,10 @@ public class CommandSuggestionHelper
             if (selectedIndex < i)
             {
                 lowestDisplayedSuggestionIndex =
-                        MathHelper.clamp(selectedIndex, 0, Math.max(suggestions.size() - maxAmountRendered, 0));
+                        Mth.clamp(selectedIndex, 0, Math.max(suggestions.size() - maxAmountRendered, 0));
             } else if (selectedIndex > j)
             {
-                lowestDisplayedSuggestionIndex = MathHelper
+                lowestDisplayedSuggestionIndex = Mth
                         .clamp(selectedIndex + minAmountRendered - maxAmountRendered, 0,
                                 Math.max(suggestions.size() - maxAmountRendered, 0));
             }

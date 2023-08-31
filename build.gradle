@@ -27,6 +27,9 @@ buildscript {
 apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'maven-publish'
 apply plugin: 'com.matthewprenger.cursegradle'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
 String mcVersion = version.split('-')[0]
 if (forgeVersion == 'latest' || forgeVersion == 'recommended')
 {
@@ -218,8 +221,8 @@ task regenerateUpdateJson {
         JsonObject promos = new JsonObject()
         newUpdateJson.add('promos', promos)
         File oldUpdateJsonFile = new File(updateJsonLocation)
+        String latestTargetMCVersion = mcVersion
         if (oldUpdateJsonFile.exists()) {
-            String latestTargetMCVersion = mcVersion
             JsonObject oldUpdateJson = new JsonParser().
                     parse(new File(updateJsonLocation).text).getAsJsonObject().
                     getAsJsonObject('promos')
