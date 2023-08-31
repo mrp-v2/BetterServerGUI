@@ -17,18 +17,20 @@ import java.awt.*;
 
 @Mixin(MinecraftServerGui.class) public abstract class MinecraftServerGuiMixin extends JComponent
 {
-    @Shadow @Final private static Font SERVER_GUI_FONT;
+    @Shadow
+    @Final
+    private static Font MONOSPACED;
     private ConsolePanel consolePanel;
     @Shadow @Final private DedicatedServer server;
 
-    @ModifyVariable(method = "getLogComponent", at = @At(value = "STORE", ordinal = 0))
+    @ModifyVariable(method = "buildChatPanel", at = @At(value = "STORE", ordinal = 0))
     private JPanel onGetLogComponentAssignJPanel(JPanel original)
     {
-        consolePanel = new ConsolePanel(SERVER_GUI_FONT);
+        consolePanel = new ConsolePanel(MONOSPACED);
         return consolePanel;
     }
 
-    @Inject(method = "getLogComponent", at = @At("TAIL"), locals = LocalCapture.CAPTURE_FAILHARD)
+    @Inject(method = "buildChatPanel", at = @At("TAIL"), locals = LocalCapture.CAPTURE_FAILHARD)
     private void onGetLogComponent(CallbackInfoReturnable<JComponent> cir, JPanel jpanel, JTextArea jtextarea,
             JScrollPane jscrollpane, JTextField jtextfield)
     {

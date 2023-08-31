@@ -153,10 +153,10 @@ public class CommandSuggestionHelper
             stringReader.skip();
         }
         int caretPosition = inputField.getCaretPosition();
-        CommandDispatcher<CommandSource> commandDispatcher = server.getCommandManager().getDispatcher();
+        CommandDispatcher<CommandSource> commandDispatcher = server.getCommands().getDispatcher();
         if (parseResults == null)
         {
-            parseResults = commandDispatcher.parse(stringReader, server.getCommandSource());
+            parseResults = commandDispatcher.parse(stringReader, server.createCommandSourceStack());
         }
         if (caretPosition >= stringReader.getCursor() && (suggestions == null || !isApplyingSuggestion))
         {

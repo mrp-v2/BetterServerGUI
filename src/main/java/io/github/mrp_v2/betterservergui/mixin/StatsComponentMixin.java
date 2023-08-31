@@ -30,26 +30,27 @@ import java.awt.*;
 
     private void tickTimeTick()
     {
-        for (int i = lastServerTickCount; i < server.getTickCounter(); i++)
+        for (int i = lastServerTickCount; i < server.getTickCount(); i++)
         {
-            tickTimes[i & 255] = (int) (server.tickTimeArray[i % 100] / 1000000);
+            tickTimes[i & 255] = (int) (server.tickTimes[i % 100] / 1000000);
         }
-        lastServerTickCount = server.getTickCounter();
+        lastServerTickCount = server.getTickCount();
         repaint();
     }
 
-    @Inject(method = "func_219053_a", at = @At("HEAD")) private void onStopTimers(CallbackInfo ci)
+    @Inject(method = "close", at = @At("HEAD"))
+    private void onStopTimers(CallbackInfo ci)
     {
         tickTimeTickTimer.stop();
     }
 
     @Inject(method = "tick", at = @At("HEAD")) private void onTick(CallbackInfo ci)
     {
-        for (int i = lastServerTickCount; i < server.getTickCounter(); i++)
+        for (int i = lastServerTickCount; i < server.getTickCount(); i++)
         {
-            tickTimes[i & 255] = (int) (server.tickTimeArray[i % 100] / 1000000);
+            tickTimes[i & 255] = (int) (server.tickTimes[i % 100] / 1000000);
         }
-        lastServerTickCount = server.getTickCounter();
+        lastServerTickCount = server.getTickCount();
     }
 
     @Inject(method = "paint", at = @At("TAIL")) public void onPaint(Graphics p_paint_1_, CallbackInfo ci)
