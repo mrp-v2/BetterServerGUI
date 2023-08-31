@@ -10,16 +10,16 @@ buildscript {
             url = 'https://files.minecraftforge.net/maven'
         }
         maven {
-            url = 'https://plugins.gradle.org/m2/'
+            url = 'https://plugins.gradle.org/m2'
         }
         jcenter()
         mavenCentral()
         maven {
-            url = 'https://dist.creeper.host/Sponge/maven'
+            url = 'https://repo.spongepowered.org/repository/maven-public'
         }
     }
     dependencies {
-        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1+', changing: true
         classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
         classpath group: 'gradle.plugin.com.matthewprenger', name: 'CurseGradle', version: '1.4.0'
     }
@@ -39,28 +39,13 @@ if (forgeVersion == 'latest' || forgeVersion == 'recommended')
 String capitalizedModId = modDisplayName.replace(' ', '')
 String modId = capitalizedModId.toLowerCase()
 String forgeMajor = forgeVersion.split('\\.')[0]
-if (minimumForgeVersion == 'none')
-{
+if (minimumForgeVersion == 'none') {
     minimumForgeVersion = forgeMajor
 }
 String homepageURL = "https://www.curseforge.com/minecraft/mc-mods/${modDisplayName.replace(' ', '-').toLowerCase()}"
 String issuesURL = "${homepageURL}/issues"
 String updateURL = "https://raw.githubusercontent.com/mrp-v2/${capitalizedModId}/master/update.json"
-String mrpLibAPI = 'none', mrpLibPatch = 'none', mrpLibNextAPI = 'none'
-if (mrpLibVersion != 'none')
-{
-    if (mrpLibVersion.contains(','))
-    {
-        int splitIndex = mrpLibVersion.indexOf(',')
-        mrpLibAPI = mrpLibVersion.substring(0, splitIndex)
-        mrpLibPatch = '.' + mrpLibVersion.substring(splitIndex + 1)
-    } else
-    {
-        mrpLibAPI = mrpLibVersion
-        mrpLibPatch = ''
-    }
-    mrpLibNextAPI = mrpLibAPI.split('\\.')[0] + '.' + ((mrpLibAPI.split('\\.')[1] as int) + 1)
-}
+
 archivesBaseName = modId
 group = "${author}.${archivesBaseName}"
 boolean usesMixins = file("src/main/resources/${modId}.mixins.json").exists()
@@ -78,15 +63,13 @@ minecraft {
     mappings channel: mapping.split('\\|')[0], version: mapping.split('\\|')[1]
     String accessTransformerPath = 'src/main/resources/META-INF/accesstransformer.cfg'
     File accessTransformerFile = file(accessTransformerPath)
-    if (accessTransformerFile.exists())
-    {
+    if (accessTransformerFile.exists()) {
         println 'Access transformer configuration found at ' + accessTransformerPath
         accessTransformer = accessTransformerFile
     }
     runs {
         client {
-            if (usesMixins)
-            {
+            if (usesMixins) {
                 property 'mixin.env.disableRefMap', 'true'
                 arg "-mixin.config=" + archivesBaseName + ".mixins.json"
             }
@@ -100,8 +83,7 @@ minecraft {
             }
         }
         server {
-            if (usesMixins)
-            {
+            if (usesMixins) {
                 property 'mixin.env.disableRefMap', 'true'
                 arg "-mixin.config=" + archivesBaseName + ".mixins.json"
             }
@@ -115,16 +97,16 @@ minecraft {
             }
         }
         data {
-            if (usesMixins)
-            {
+            if (usesMixins) {
                 property 'mixin.env.disableRefMap', 'true'
                 arg "-mixin.config=" + archivesBaseName + ".mixins.json"
             }
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-            args '--mod', modId, '--all', '--output', file('src/generated/resources/'), '--existing',
-                    sourceSets.main.output.resourcesDir, '--existing', file('../mrpLibrary/build/resources/main')
+            String[] tempArgs = ['--mod', modId, '--all', '--output', file('src/generated/resources/'), '--existing',
+                                 sourceSets.main.output.resourcesDir]
+            args tempArgs
             mods {
                 mod {
                     source sourceSets.main
@@ -135,26 +117,15 @@ minecraft {
 }
 
 repositories {
-    maven {
-        name = 'mrp Library'
-        url = new URL('https://maven.pkg.github.com/mrp-v2/mrpLibrary')
-        credentials {
-            username = 'mrp-v2'
-            if (secretFile.exists())
-            {
-                password = new JsonSlurper().parse(new File('../secrets.json')).get('github-packages-token')
-            }
-        }
-    }
     mavenLocal()
+    maven {
+        name = 'CurseMaven'
+        url = new URL('https://www.cursemaven.com')
+    }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${mcVersion}-${forgeVersion}"
-    if (mrpLibAPI != 'none' && mrpLibPatch != 'none')
-    {
-        compile fg.deobf("mrp_v2.mrplibrary:mrplibrary:${mrpLibAPI}${mrpLibPatch}")
-    }
 }
 
 jar {
@@ -167,8 +138,7 @@ jar {
                 'Implementation-Version': "${version}",
                 'Implementation-Vendor': author,
                 'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"))
-        if (usesMixins)
-        {
+        if (usesMixins) {
             map.putAll('MixinConfigs': "${modId}.mixins.json")
         }
         attributes(map)
@@ -178,9 +148,9 @@ jar {
 jar.finalizedBy('reobfJar')
 
 processResources {
+    setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
     String tempMCVersion = mcVersion
-    if (mcVersion == "1.16.5")
-    {
+    if (mcVersion == "1.16.5") {
         tempMCVersion = "1.16.4"
     }
     inputs.property 'version', project.version
@@ -195,11 +165,6 @@ processResources {
     inputs.property 'author', author
     inputs.property 'updateURL', updateURL
     inputs.property 'issuesURL', issuesURL
-    if (mrpLibVersion != 'none')
-    {
-        inputs.property 'mrpLibAPI', mrpLibAPI
-        inputs.property 'mrpLibNextAPI', mrpLibNextAPI
-    }
     String[] files = new String[2]
     files[0] = 'META-INF/mods.toml'
     files[1] = 'pack.mcmeta'
@@ -210,10 +175,6 @@ processResources {
                 'minimumForgeVersion': minimumForgeVersion, 'mcVersion': tempMCVersion,
                 'homepageURL': homepageURL, 'modDisplayName': modDisplayName, 'capitalizedModId': capitalizedModId,
                 'modDescription': modDescription, 'author': author, 'updateURL': updateURL, 'issuesURL': issuesURL)
-        if (mrpLibVersion != 'none')
-        {
-            properties.putAll('mrpLibAPI': mrpLibAPI, 'mrpLibNextAPI': mrpLibNextAPI)
-        }
         expand properties
     }
     from(sourceSets.main.resources.srcDirs) {
@@ -233,9 +194,8 @@ publishing {
             url = uri('https://maven.pkg.github.com/mrp-v2/' + capitalizedModId)
             credentials {
                 username = 'mrp-v2'
-                if (secretFile.exists())
-                {
-                    password = new JsonSlurper().parse(new File('../secrets.json')).get('github-packages-token')
+                if (secretFile.exists()) {
+                    password = new JsonSlurper().parse(secretFile).get('github-packages-token')
                 }
             }
         }
@@ -258,20 +218,21 @@ task regenerateUpdateJson {
         JsonObject promos = new JsonObject()
         newUpdateJson.add('promos', promos)
         File oldUpdateJsonFile = new File(updateJsonLocation)
-        if (oldUpdateJsonFile.exists())
-        {
+        if (oldUpdateJsonFile.exists()) {
+            String latestTargetMCVersion = mcVersion
             JsonObject oldUpdateJson = new JsonParser().
                     parse(new File(updateJsonLocation).text).getAsJsonObject().
                     getAsJsonObject('promos')
-            for (Map.Entry<String, JsonElement> entry : oldUpdateJson.entrySet())
-            {
+            for (Map.Entry<String, JsonElement> entry : oldUpdateJson.entrySet()) {
                 promos.addProperty(entry.key, entry.value.asString)
+                if (entry.key.equals("latest")) {
+                    latestTargetMCVersion = entry.value.asString.substring(0, entry.value.asString.indexOf("-"))
+                }
             }
         }
         promos.addProperty("${mcVersion}-recommended", (String) version)
         promos.addProperty("${mcVersion}-latest", (String) version)
-        if (mcVersion == new JsonSlurper().parse(new File('../secrets.json')).get('latest-mc-version'))
-        {
+        if (mcVersion >= latestTargetMCVersion) {
             promos.addProperty("recommended", (String) version)
             promos.addProperty("latest", (String) version)
         }
@@ -280,8 +241,7 @@ task regenerateUpdateJson {
     }
 }
 
-if (usesMixins)
-{
+if (usesMixins) {
     apply plugin: 'org.spongepowered.mixin'
 
     mixin {
@@ -289,42 +249,55 @@ if (usesMixins)
     }
 }
 
+task ensureCleanWorkingTree {
+    doFirst {
+        Tuple2<String, String> statusResult = doCommand("git", "status")
+        if (!statusResult.first.contains("working tree clean")) {
+            throw new IllegalStateException("The working tree isn't clean")
+        }
+    }
+    mustRunAfter ':regenerateUpdateJson'
+}
+
+task ensureTagExists {
+    doFirst {
+        Tuple2<String, String> tagResult = doCommand("git", "tag", "$version")
+        if (!tagResult.second.empty) {
+            if (tagResult.second.contains("already exists")) {
+                return
+            }
+            throw new IllegalStateException("Error creating new tag")
+        }
+        throw new IllegalStateException("Tag created, rerun the task please")
+    }
+    mustRunAfter ':ensureCleanWorkingTree'
+}
+
 task publishToGithubAndCurseforge {
+    dependsOn ':regenerateUpdateJson'
+    dependsOn ':ensureCleanWorkingTree'
+    dependsOn ':ensureTagExists'
     dependsOn ':publishGprPublicationToGitHubPackagesRepository'
-    dependsOn ":curseforge${projectId}"
+    dependsOn ':curseforge'
 }
 
 curseforge {
-    if (secretFile.exists())
-    {
+    if (secretFile.exists()) {
         apiKey = new JsonSlurper().parse(secretFile).get('curseforge-api-token')
     }
     project {
         id = projectId
-        StringBuilder out = new StringBuilder(), error = new StringBuilder()
-        Process previousVersionProcess = ['git', 'describe', '--tags', '--abbrev=0', "${version}^"].execute()
-        previousVersionProcess.consumeProcessOutput(out, error)
-        previousVersionProcess.waitFor()
-        String previousVersion = out.toString().trim()
-        out = new StringBuilder()
-        println('Previous Version: ' + previousVersion)
-        println('Error?: ' + error.toString().trim())
-        error = new StringBuilder()
-        Process gitLogProcess = ['git', 'log', '--pretty=format:"%s"', "${previousVersion}..${version}"].execute()
-        gitLogProcess.consumeProcessOutput(out, error)
-        gitLogProcess.waitFor()
-        String changelogStr = out.toString().trim()
-        println('Changelog: ' + changelogStr)
-        println('Error?: ' + error.toString().trim())
-        changelog = changelogStr
+        Tuple2<String, String> previousVersionResult =
+                doCommand('git', 'describe', '--tags', '--abbrev=0', "${version}^")
+        println('Previous Version: ' + previousVersionResult.first)
+        println('Error?: ' + previousVersionResult.second.trim())
+        Tuple2<String, String> changelogResult =
+                doCommand('git', 'log', '--pretty=format:"%s"', "${previousVersionResult.first}..${version}")
+        println('Changelog: ' + changelogResult.first)
+        println('Error?: ' + changelogResult.second.trim())
+        changelog = changelogResult.first
         releaseType = 'release'
         addGameVersion mcVersion
-        if (mrpLibVersion != 'none')
-        {
-            relations {
-                requiredDependency 'mrp-library'
-            }
-        }
     }
     options {
         debug = false
@@ -332,4 +305,19 @@ curseforge {
         javaIntegration = true
         forgeGradleIntegration = true
     }
+}
+
+static Tuple2<String, String> doCommand(String... command) {
+    Process commandProcess = command.execute()
+    StringBuilder out = new StringBuilder(), error = new StringBuilder()
+    commandProcess.consumeProcessOutput(out, error)
+    commandProcess.waitFor()
+    return new Tuple2<>(out.toString().trim(), error.toString().trim())
+}
+
+tasks.getByName('publishGprPublicationToGitHubPackagesRepository').configure {
+    mustRunAfter ':ensureTagExists'
+}
+tasks.getByName('curseforge').configure {
+    mustRunAfter ':publishGprPublicationToGitHubPackagesRepository'
 }
